@@ -43,7 +43,7 @@ class TcpServerManager {
     start(){
         const self = this;
         self.tcpServer.start();
-		console.info(`TcpServerManager[${self.instanceName}] started on `, self.port );
+				console.info(`TcpServerManager[${self.instanceName}] started on `, self.port );
         self.tcpServer.on('connect',(socket)=>{
             console.info(`TcpServerManager[${self.instanceName}] client connected `);  
             const data = {a:"CON",uuid:generateShortHexId(8)};
@@ -80,10 +80,9 @@ class TcpServerManager {
                 }
                 return;
             }
-            
-            const client = self.clients.find(c=>c.uuid==socket.uuid);
-            if (client == null) return;
-            self.events['data'].forEach(event=>event(client,jsondata));
+          	const client = self.clients.find(c=>c.uuid==socket.uuid);
+          	if (client == null) return;
+          	self.events['data'].forEach(event=>event(client,jsondata));
         });
     }
     broadcast(message){

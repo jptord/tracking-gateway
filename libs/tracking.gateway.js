@@ -2,7 +2,7 @@ const NodeCaptureServer = require("./node.capture.server");
 
 class TrackingGateway{
     constructor(){
-        console.info("Tracking-gateway 1.0.0");
+        console.info("Tracking-Gateway 1.0.0");
         this.nodeCaptureServer = new NodeCaptureServer();
     }
     start(){

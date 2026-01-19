@@ -2,10 +2,10 @@ const TcpServerManager = require('./network/tcp.server.manager');
 
 class NodeCaptureServer{
     constructor(){
-        this.tcpServerManagerCapture = new TcpServerManager({instanceName:'CaptureNodeServer',port:process.env.TCP_SERVERPORT_NODE_CAPTURE});        
+        this.tcpServerManagerCapture = new TcpServerManager({instanceName:'CaptureNodeServer',port:process.env.TCP_SERVERPORT_NODE_CAPTURE});
         this.tcpServerManagerProccesor = new TcpServerManager({instanceName:'ProcessorNodeServer',port:process.env.TCP_SERVERPORT_NODE_PROCESSOR});
     }
-    start(){        
+    start(){
         console.info("NodeCaptureServer started");
         const self = this;
         self.tcpServerManagerCapture.start();
