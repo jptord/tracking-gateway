@@ -10,7 +10,10 @@
   "description": "",
   "dependencies": {
     "atx-prettylog": "file:../npm-tools/atx-prettylog",
-    "tracking-common" : "file:../npm-tools/tracking-common",
-    "dotenv": "^17.2.3"
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "tracking-common": "file:../npm-tools/tracking-common"
   }
 }
