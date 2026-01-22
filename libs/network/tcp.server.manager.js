@@ -40,7 +40,7 @@ class Client{
 }
 class TcpServerManager {
     constructor({ port, instanceName='' }) {
-        this.tcpServer = new TcpServer({ instanceName:instanceName, port, jsonmode:true });        
+        this.tcpServer = new TcpServer({ instanceName:instanceName, port, mode:"protocol" });        
         this.port = port;
         this.instanceName = instanceName;
         this.events = {'data':[],'connect':[],'disconnect':[]};
@@ -66,6 +66,7 @@ class TcpServerManager {
 						socket.uuid = data.uuid;
             console.info(`TcpServerManager[${self.instanceName}] ${data.uuid} client connected `);  
             socket.write(JSON.stringify(data));*/
+						console.log("TcpServerManager client connected");
 						socket.uuid = generateShortHexId(8);
 						socket.write(setHeader(socket.uuid,'COM',Buffer.from("connected")));
         });
@@ -78,8 +79,23 @@ class TcpServerManager {
             self.events['disconnect'].forEach(event=>event(client,data));
             console.info(`TcpServerManager[${self.instanceName}] client removed`,socket.uuid);            
         });
-        self.tcpServer.on('data',(socket,jsondata)=>{
-					
+        self.tcpServer.on('COM',(socket,data)=>{
+					console.log("protocol COM", data);
+				});
+        self.tcpServer.on('data',(socket,data)=>{
+					const uuid = Buffer.from(data.subarray(0,4)).toString('hex');
+					const len = Buffer.from(data.subarray(4,5)).readUInt8(0);
+					const action = Buffer.from(data.subarray(5,5+len)).toString();
+					const dataEnd = Buffer.from(data.subarray(5+len));
+					/*console.debug("data",data);
+					console.debug("uuid",uuid);
+					console.debug("len",len);
+					console.debug("action",action);
+					console.debug("dataEnd",dataEnd);*/
+					self.events['data'].forEach(event => event(client,dataEnd));
+					if (self.events[action]!=null)
+						self.events[action].forEach(event => event(client,dataEnd,uuid));
+					/*
             if (jsondata.a=="CON"){
                 const clientLost = self.clientsLost.find(c=>c.uuid==jsondata.uuid);
                 const client = self.clients.find(c=>c.uuid==socket.uuid);
@@ -104,7 +120,7 @@ class TcpServerManager {
             }
           	const client = self.clients.find(c=>c.uuid==socket.uuid);
           	if (client == null) return;
-          	self.events['data'].forEach(event=>event(client,jsondata));
+          	self.events['data'].forEach(event=>event(client,jsondata));*/
         });
     }
     broadcast(message){

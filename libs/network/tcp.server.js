@@ -13,16 +13,26 @@ class TcpServer {
         this.events = {'connect':[],'message':[],'data':[],'disconnect':[],'error':[]};
     }
     on(event,callback) {
-        this.events[event].push(callback);
+			if (this.events[event]==null)
+				this.events[event] = [];
+			this.events[event].push(callback);
     }
     start() {
         const me = this;
         const server = net.createServer(function (socket) {
             me.events['connect'].forEach(event => event(socket));
             socket.on('data', (data) => {
-														
-							me.events['data'].forEach(event => event(socket, data));
+                if (me.mode=="protocol"){
+									console.log("data",data);
+									const uuid = Buffer.from(data.subarray(0,4)).toString('hex');
+									const len = Buffer.from(data.subarray(4,5)).readUInt8(0);
+									const action = Buffer.from(data.subarray(5,5+len)).toString();
+									const payload = Buffer.from(data.subarray(5+len));
 
+									me.events['action'].forEach(event => event(socket, uuid, payload));
+								}else if (me.mode=="raw"){
+									me.events['data'].forEach(event => event(socket, data));
+								}
                 /*if (me.jsonmode){
                     let jsondata;
                     try{
