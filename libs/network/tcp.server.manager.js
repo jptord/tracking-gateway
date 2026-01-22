@@ -1,5 +1,6 @@
 const { TcpServer } = require("./tcp.server.js");
 
+const fs = require('fs');
 function generateShortHexId(length){
     let result = '';
     const characters = '0123456789abcdef';
@@ -38,9 +39,107 @@ class Client{
         return {uuid:this.uuid,connectTime:this.connectTime};
     }
 }
+
+class DataVars{
+		constructor(){
+			this.writeStream = null;
+			this.receivedChunks = [];
+			this.totalLength = 0;
+			this.size = 0;
+		}
+		
+}
+class ReceiverBigData{
+	constructor(tcpServer,clients){
+		this.tcpServer = tcpServer;
+		this.clients = clients;
+		this.events = {'data':[]};
+		this.init();
+	}
+	on(ev,fn){
+		this.events[ev].push(fn);		
+	}
+	init(){
+		const self = this;
+		const receivers = {};
+		
+		self.tcpServer.on("SDATA", (data, socket, uuid)=>{
+			console.log("protocol SDATA",Number.parseInt(data.toString()), socket.uuid);
+			const client = self.clients.find(c=>c.uuid==socket.uuid);
+			if (client == null) return;
+			const dataVars = new DataVars();	
+			dataVars.receivedChunks = [];
+			dataVars.totalLength = 0;
+			dataVars.size = 0;
+			socket['mode'] = 'raw';
+			//const destPath = 'received_file.dat';
+			dataVars.size = Number.parseInt(data.toString());
+			receivers[socket.uuid] = dataVars;
+			
+			//writeStream = fs.createWriteStream(destPath);
+			//socket.pipe(writeStream, { end: false } );
+		});
+		self.tcpServer.on("EDATA", (data, socket, uuid)=>{
+			console.log("protocol EDATA");					    			
+			console.log("writted");
+			socket['mode'] = '';
+		});
+		self.tcpServer.on('end',(socket, uuid)=>{
+			console.log("protocol end");
+			socket['mode'] = '';
+			//writeStream.end();
+		});
+		
+		self.tcpServer.on('data',(data, socket)=>{
+				if (socket['mode']=='raw'){
+					if(receivers[socket.uuid]==undefined) return;
+					receivers[socket.uuid].receivedChunks.push(data);
+					receivers[socket.uuid].totalLength += data.length;
+					console.log("receivers[socket.uuid].totalLength",receivers[socket.uuid].totalLength);
+					if (receivers[socket.uuid].totalLength > receivers[socket.uuid].size){
+						const fullDataBuffer = Buffer.concat(receivers[socket.uuid].receivedChunks, receivers[socket.uuid].size);
+						self.events['data'].forEach(e=>e(fullDataBuffer,socket,socket.uuid));
+						receivers[socket.uuid] = null;
+						//fs.writeFileSync('filerec.rar',fullDataBuffer);
+					}
+				}
+		});
+	}
+
+}
+class ReceiverFile{
+	constructor(tcpServer, clients){
+		this.tcpServer = tcpServer;
+		this.clients = clients;
+		this.events = {'data':[]};
+		this.init();
+	}
+	on(ev,fn){
+		if (this.events[ev] == null)
+			this.events[ev] = [];
+		this.events[ev].push(fn);		
+	}
+	init(){
+		const writeStreams = {};
+		const self = this;
+		self.tcpServer.on("FDATA", (data, socket, uuid)=>{
+			console.log("protocol FDATA", data);
+			socket['mode'] = 'file';
+			const destPath = data.toString();
+			writeStreams[uuid] = fs.createWriteStream(destPath);
+			socket.pipe(writeStreams[uuid], { end: false });
+		});
+		
+		self.tcpServer.on('end',(socket, uuid)=>{			
+			if(writeStreams[socket.uuid]==undefined) return;
+			writeStreams[uuid].end();
+			writeStreams[uuid] = null;
+		});		
+	}
+}
 class TcpServerManager {
     constructor({ port, instanceName='' }) {
-        this.tcpServer = new TcpServer({ instanceName:instanceName, port, mode:"protocol" });        
+        this.tcpServer = new TcpServer({ instanceName:instanceName, port, mode:"encodeUuid" });        
         this.port = port;
         this.instanceName = instanceName;
         this.events = {'data':[],'connect':[],'disconnect':[]};
@@ -58,14 +157,6 @@ class TcpServerManager {
         self.tcpServer.start();
 				console.info(`TcpServerManager[${self.instanceName}] started on `, self.port );
         self.tcpServer.on('connect',(socket)=>{
-					/*console.log("data",data);
-						console.log("uuid16", uuid.toString('hex'));
-						console.log("len", len);
-						console.log("action", action.toString());
-            const data = {a:"CON",uuid:generateShortHexId(8)};
-						socket.uuid = data.uuid;
-            console.info(`TcpServerManager[${self.instanceName}] ${data.uuid} client connected `);  
-            socket.write(JSON.stringify(data));*/
 						console.log("TcpServerManager client connected");
 						socket.uuid = generateShortHexId(8);
 						socket.write(setHeader(socket.uuid,'COM',Buffer.from("connected")));
@@ -79,49 +170,39 @@ class TcpServerManager {
             self.events['disconnect'].forEach(event=>event(client,data));
             console.info(`TcpServerManager[${self.instanceName}] client removed`,socket.uuid);            
         });
-        self.tcpServer.on('COM',(socket,data)=>{
+				
+        self.tcpServer.on('COM',(data, socket, uuid)=>{
 					console.log("protocol COM", data);
+					const clientLost = self.clientsLost.find(c=>c.uuid==uuid);
+
+					const client = self.clients.find(c=>c.uuid==socket.uuid);
+					if (clientLost == null && client == null) {
+							const newClient = new Client(socket,uuid);
+							socket.uuid = uuid;
+							self.clients.push(newClient);
+							console.info(`TcpServerManager[${self.instanceName}] CON created`,socket.uuid,uuid);  
+					}else if(clientLost && client==null){
+							self.clientsLost.splice(clientLost,1);
+							self.clients.push(clientLost);
+							socket.uuid = uuid;
+							clientLost.socket = socket;
+							console.info(`TcpServerManager[${self.instanceName}] CON recovery `,socket.uuid,uuid);  
+					}else if(client && clientLost==null){
+							client.socket = socket;
+							console.info(`TcpServerManager[${self.instanceName}] CON updated `,socket.uuid,uuid);  
+							client.uuid = uuid
+							socket.uuid = uuid;                    
+					}
+					return;
 				});
-        self.tcpServer.on('data',(socket,data)=>{
-					const uuid = Buffer.from(data.subarray(0,4)).toString('hex');
-					const len = Buffer.from(data.subarray(4,5)).readUInt8(0);
-					const action = Buffer.from(data.subarray(5,5+len)).toString();
-					const dataEnd = Buffer.from(data.subarray(5+len));
-					/*console.debug("data",data);
-					console.debug("uuid",uuid);
-					console.debug("len",len);
-					console.debug("action",action);
-					console.debug("dataEnd",dataEnd);*/
-					self.events['data'].forEach(event => event(client,dataEnd));
-					if (self.events[action]!=null)
-						self.events[action].forEach(event => event(client,dataEnd,uuid));
-					/*
-            if (jsondata.a=="CON"){
-                const clientLost = self.clientsLost.find(c=>c.uuid==jsondata.uuid);
-                const client = self.clients.find(c=>c.uuid==socket.uuid);
-                if (clientLost == null && client == null) {
-                    const newClient = new Client(socket,jsondata.uuid);
-                    socket.uuid = jsondata.uuid;
-                    self.clients.push(newClient);
-                    console.info(`TcpServerManager[${self.instanceName}] CON created`,socket.uuid,jsondata.uuid);  
-                }else if(clientLost && client==null){
-                    self.clientsLost.splice(clientLost,1);
-                    self.clients.push(clientLost);
-                    socket.uuid = jsondata.uuid;
-                    clientLost.socket = socket;
-                    console.info(`TcpServerManager[${self.instanceName}] CON recovery `,socket.uuid,jsondata.uuid);  
-                }else if(client && clientLost==null){
-                    client.socket = socket;
-                    console.info(`TcpServerManager[${self.instanceName}] CON updated `,socket.uuid,jsondata.uuid);  
-                    client.uuid = jsondata.uuid
-                    socket.uuid = jsondata.uuid;                    
-                }
-                return;
-            }
-          	const client = self.clients.find(c=>c.uuid==socket.uuid);
-          	if (client == null) return;
-          	self.events['data'].forEach(event=>event(client,jsondata));*/
-        });
+				const receiverBigData = new ReceiverBigData(self.tcpServer, self.clients);
+				receiverBigData.on('data',(data,socket,uuid)=>{
+					console.log("receiverBigData.length", data.length);
+				});
+				const receiverFile = new ReceiverFile(self.tcpServer, self.clients);
+				receiverFile.on('data',(data,socket,uuid)=>{
+					console.log("receiverFile.length", data.length);
+				});
     }
     broadcast(message){
         self.clients.splice(client,1);
