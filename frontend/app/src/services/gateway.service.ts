@@ -13,7 +13,7 @@ export class GatewayService {
 	}
 	getNodes() {
 		return this.http.get(
-			this.host + `/nodes.get`
+			this.host + `/parser.all`
 		);
 	}
 }

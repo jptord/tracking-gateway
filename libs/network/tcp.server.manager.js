@@ -190,7 +190,7 @@ class TcpServerManager {
 					}else if(client && clientLost==null){
 							client.socket = socket;
 							console.info(`TcpServerManager[${self.instanceName}] CON updated `,socket.uuid,uuid);  
-							client.uuid = uuid
+							client.uuid = uuid;
 							socket.uuid = uuid;                    
 					}
 					return;
