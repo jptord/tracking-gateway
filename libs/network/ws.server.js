@@ -5,7 +5,7 @@ const WebSocket	= require('ws');
 class WSServer extends Server {
 		className = 'WSServer';
 		constructor({port, instanceName, mode}){
-			super(port, {pingInterval: 5000});
+			super(port);
 			this.instanceName = instanceName;
 			this.port = port;
 			this.mode = mode;
