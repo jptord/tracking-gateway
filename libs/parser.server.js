@@ -18,7 +18,7 @@ class ParserServer{
 			return this.parsers.map(c=>this.getClient(c));
 		}
 		getClient(c){
-			return  {uuid:c.uuid,response:c.response,connectTime:c.connectTime,connectTimeF:(new Date(c.connectTime)).toISOString(),devicesCount: c.devices.length};
+			return  {uuid:c.uuid,response:c.response,connectTime:c.connectTime,connectTimeF:(new Date(c.connectTime)).toISOString(),devicesCount: c.devices?.length};
 		}
 		doPing(){
 			this.wsServerManagerParser.doPing();

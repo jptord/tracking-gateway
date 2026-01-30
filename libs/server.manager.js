@@ -37,7 +37,7 @@ class ServerManager{
 			ws.emit('parser.devices',uuid,devices);
 		});
 		parserServer.on('device.ping',(client,uuid,properties)=>{
-			console.log('device.ping tp parser.ping')
+			console.log('device.ping tp parser.ping',uuid,properties)
 			ws.emit('parser.ping',uuid,properties);
 		});
 		parserServer.on('parser.disconnect',(client,uuid,data)=>{
