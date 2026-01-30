@@ -170,7 +170,9 @@ class TcpServerManager {
             self.events['disconnect'].forEach(event=>event(client,data));
             console.info(`TcpServerManager[${self.instanceName}] client removed`,socket.uuid);            
         });
-				
+        self.tcpServer.on('pong',(data, socket, uuid)=>{
+						console.log("pong", data);
+				});
         self.tcpServer.on('COM',(data, socket, uuid)=>{
 					console.log("protocol COM", data);
 					const clientLost = self.clientsLost.find(c=>c.uuid==uuid);

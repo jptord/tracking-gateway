@@ -14,10 +14,11 @@ class Client{
     constructor(socket,uuid){
         this.uuid = uuid==null?generateShortHexId(8):uuid;
         this.socket = socket;
+				this.response = 0;
         this.connectTime = Date.now();
     }
     get(){
-        return {uuid:this.uuid,connectTime:this.connectTime,connectTimeF:(new Date(this.connectTime)).toISOString()};
+        return {uuid:this.uuid,resonse:this.response,connectTime:this.connectTime,connectTimeF:(new Date(this.connectTime)).toISOString()};
     }
 }
 class WSServerManager {
@@ -28,12 +29,20 @@ class WSServerManager {
 		this.clients = [];
 		this.clientsLost = [];
 		//this.on = ()=>{};
-		this.events = {'data':[],'COM':[],'connect':[],'disconnect':[],'devices.all':[],'devices.in':[],'devices.out':[]};		
+		this.events = {'data':[],'COM':[],'connect':[],'disconnect':[],'devices.all':[],'devices.in':[],'devices.out':[],'devices.out':[],'device.pin':[]};		
 	}
 	on(ev, fn ,... args ){
 		if (this.events[ev] == undefined) this.events[ev] = [];
 		this.events[ev].push(fn);
 		//console.log("this.events",this.events);
+	}
+	doPing(){	
+		const self = this;
+		const clients = this.clients;
+		clients.forEach((client)=>{
+			const ms = Date.now();
+			client.socket.emit("ping",ms);
+		});
 	}
 	start(){
 		const self = this;
@@ -51,6 +60,14 @@ class WSServerManager {
 			});
 			socket.on('COM',(uuid,data)=>{			
 				
+			});
+			socket.on('pong',(uuid,ms)=>{
+				const client = self.clients.find(c=>c.uuid==socket.uuid);
+				if (client==undefined) return;
+				const t = Date.now();
+				client.response = t-ms;
+				self.events['device.ping'].forEach(fn=>fn(client, uuid, {response:client.response} ));
+				//console.log("pong ms t", (t-ms) , "ms");
 			});
 			socket.on('COM',(uuid,data)=>{			
 				console.log("protocol COM",uuid, data);
@@ -84,7 +101,7 @@ class WSServerManager {
 			socket.onAny((ev, ...args)=>{
 				const client = self.clients.find(c=>c.uuid==socket.uuid);
 				if (client == null) return;
-				console.log("on ",ev,);
+				console.log("on",ev,);
 				if (self.events[ev]==undefined) return;
 				console.log("self.events[ev]",self.events[ev]);
 				self.events[ev].forEach((fn)=>{

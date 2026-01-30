@@ -8,17 +8,20 @@ class ParserServer{
     constructor(){
 			this.parsers = [];
 			this.wsServerManagerParser = new WSServerManager({instanceName:'ParserWSNodeServer',port:process.env.WS_SERVERPORT_NODE_PARSER});
-			this.events = { "parser.connect":[], "parser.devices":[], "parser.disconnect":[] };
+			this.events = { "parser.connect":[], "parser.devices":[], "parser.disconnect":[], "device.ping":[] };
     }
 		on(ev, fn){
 			if (this.events[ev] == undefined) this.events[ev] = [];
 			this.events[ev].push(fn);
 		}
 		getClients(){
-			return this.parsers.map(c=>this.getClient(c) );
+			return this.parsers.map(c=>this.getClient(c));
 		}
 		getClient(c){
-			return  {uuid:c.uuid,connectTime:c.connectTime,connectTimeF:(new Date(c.connectTime)).toISOString(),devicesCount: c.devices.length};
+			return  {uuid:c.uuid,response:c.response,connectTime:c.connectTime,connectTimeF:(new Date(c.connectTime)).toISOString(),devicesCount: c.devices.length};
+		}
+		doPing(){
+			this.wsServerManagerParser.doPing();
 		}
     start(){
 			console.info("ParserServer started");
@@ -43,6 +46,9 @@ class ParserServer{
 			self.wsServerManagerParser.on("devices.out",(client, uuid, data)=>{
 				console.log("devices.out uuid", uuid);
 				console.log("devices.out data", data);
+			});
+			self.wsServerManagerParser.on("device.ping",(client, uuid, data)=>{
+				self.events['device.ping'].forEach(fn=>fn(client, uuid, data ));
 			});
 
 			self.wsServerManagerParser.start();

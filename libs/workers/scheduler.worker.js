@@ -1,6 +1,12 @@
+const dotenv = require('dotenv').config();
 const fs = require('fs');
 const { parentPort, workerData } = require('node:worker_threads');
-const { timerEach, schedulePath } = workerData;
+const { timerEach } = workerData;
+
+let PING_INTERVAL_MS = process.env.PING_INTERVAL_MS;
+let STORAGE_INTERVAL_HRS = process.env.STORAGE_INTERVAL_HRS * 60 * 60 * 1000;
+let SAVE_INTERVAL_MIN = process.env.SAVE_INTERVAL_MIN * 60 * 1000;
+
 let schedules = {};
 
 function getToday() {
@@ -107,8 +113,16 @@ function updateSchedule(id) {
 }
 
 setInterval(() => {
-		parentPort.postMessage({ command: "schedule.run", payload: "5sec" });
-}, timerEach);
+	parentPort.postMessage({ command: "schedule.ping", payload: PING_INTERVAL_MS });
+}, PING_INTERVAL_MS);
+
+setInterval(() => {
+	parentPort.postMessage({ command: "schedule.save", payload: SAVE_INTERVAL_MIN });
+}, SAVE_INTERVAL_MIN);
+
+setInterval(() => {
+	parentPort.postMessage({ command: "schedule.storage", payload: STORAGE_INTERVAL_HRS });
+}, STORAGE_INTERVAL_HRS);
 
 parentPort.on("message", (message) => {
 	if (message.command === 'schedule.loading') {

@@ -25,8 +25,11 @@ export class AppComponent implements OnInit {
     var BLANK_IMG = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
     //this.devices = this.websocketService.devices;
     //this.clusters = this.websocketService.clusters;
-    this.wsGatewayService.on("parser.all",(data)=>{
+    this.wsGatewayService.on("parser.all",(uuid,data)=>{
 			console.log("parser.all data",data);
+    });
+    this.wsGatewayService.on("device.ping",(uuid,data)=>{
+			console.log("parser.ping data",uuid,data);
     });
 	}
   title = 'app';

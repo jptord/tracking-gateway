@@ -1,8 +1,8 @@
 
 import { Injectable } from '@angular/core';
 import { Socket } from 'ngx-socket-io';
-import { environment } from '../environments/environments'; 
-import { CookiesService } from './cookies.service'; 
+import { environment } from '../environments/environments';
+import { CookiesService } from './cookies.service';
 import { Router } from '@angular/router';
 
 const LOG_LEVEL = 3;
@@ -18,6 +18,7 @@ export class WSGatewayService {
 	uuid: any;
 	windows = [];
 	devices = [];
+	parsers = [];
 	events = {
 		servers: [],
 		clusters: [],
@@ -34,6 +35,8 @@ export class WSGatewayService {
 		'offDevices': [],
 		'allDevices': [],
 		'remote.message': [],
+		'parser.all': [],
+		'device.ping': [],
 		progress: [],
 		tasks: [],
 		disconnect: [],
@@ -79,6 +82,8 @@ export class WSGatewayService {
 			'offDevices': [],
 			'window.close': [],
 			'allDevices': [],
+			'parser.all': [],
+			'device.ping': [],
 			connect: [],
 			change: [],
 			connectCluster: [],
@@ -96,6 +101,7 @@ export class WSGatewayService {
 		this.webSocket.emit(ev, data);
 	}
 	on(event: string, fn: any) {
+		console.log("event", event);
 		this.events[event].push(fn);
 	}
 	off(event: string) {
@@ -106,11 +112,23 @@ export class WSGatewayService {
 		this.initialize();
 	}
 	initialize() {
-		this.webSocket.on('parser.all', (data) => { this.allDevices(data); if (LOG_LEVEL > 2) console.log("parser.all", data); });
-		this.webSocket.on('parser.devices', (data) => { this.allDevices(data); if (LOG_LEVEL > 2) console.log("parser.devices", data); });
-		this.webSocket.on('parser.disconnect', (data) => { this.allDevices(data); if (LOG_LEVEL > 2) console.log("parser.disconnect", data); });
+		this.webSocket.on('parser.all', (uuid, data) => { this.dispatch("set",uuid,data); if (LOG_LEVEL > 2) console.log("parser.all", data); });
+		this.webSocket.on('parser.devices', (uuid, data) => { this.allDevices(data); if (LOG_LEVEL > 2) console.log("parser.devices", data); });
+		this.webSocket.on('parser.disconnect', (uuid, data) => { this.allDevices(data); if (LOG_LEVEL > 2) console.log("parser.disconnect", data); });
+		this.webSocket.on('parser.ping', (uuid, data) => { this.dispatch("ping",uuid,data); if (LOG_LEVEL > 2) console.log("device.ping", data); });
 	}
-	p
+	dispatch(action,uuid,data){
+		console.log("dispatch",action, uuid, data);
+		if (action=="ping"){
+			console.log("ping", uuid, data);
+			const parser = this.parsers.find(p=>p.uuid == uuid);
+			if (parser!=undefined){
+				Object.keys(data).forEach(k=>{
+					parser[k] = data[k];
+				})
+			}
+		}
+	}
 	allDevices(devicesObj) {
 		/*const devices = Object.keys(devicesObj).map(k => { devicesObj[k]['serial'] = k; return devicesObj[k]; });
 		if (LOG_LEVEL > 2) console.log("connect devices", devices);
